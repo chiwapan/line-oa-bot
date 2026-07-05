@@ -21,6 +21,7 @@ except Exception as e:
 
 DEMO_MODE = not os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 HISTORY = []
+SYMPTOMS_LOG = []
 
 
 def classify_intent(text):
@@ -68,7 +69,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="chips">
 <button onclick="t('ราคาเท่าไร')">💰 ราคา</button>
 <button onclick="t('รักษาอะไรบ้าง')">🏥 บริการ</button>
-<button onclick="t('ปวดหัว')">😰 อาการ</button>
+<button onclick="t('แจ้งอาการ')">📝 แจ้งอาการ</button>
 <button onclick="t('นัดหมาย')">📅 นัดคิว</button>
 <button onclick="t('อยู่ไหน')">📍 สถานที่</button>
 <button onclick="t('หมอชื่ออะไร')">👨‍⚕️ ทีมแพทย์</button>
@@ -79,21 +80,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="stats" id="S">0 matched intents</div>
 </div>
 <script>
-let matched=0;
-function t(m){document.getElementById('I').value=m;s()}
+let matched=0, awaitingSymptoms=false;
+function t(m){
+  if(m==='แจ้งอาการ'){
+    awaitingSymptoms=true;
+    let M=document.getElementById('M');
+    M.innerHTML+='<div class="m b">📝 กรุณาพิมพ์อาการที่ต้องการปรึกษา\\nเจ้าหน้าที่จะติดต่อกลับโดยเร็ว</div>';
+    M.scrollTop=M.scrollHeight;
+    return;
+  }
+  document.getElementById('I').value=m;s();
+}
 function s(){
-let i=document.getElementById('I'),v=i.value.trim();
-if(!v)return;
-let M=document.getElementById('M');
-M.innerHTML+='<div class="m u">'+v+'</div>';
-i.value='';
-M.scrollTop=M.scrollHeight;
-fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:v})})
-.then(r=>r.json()).then(d=>{
-M.innerHTML+='<div class="m b">'+d.response+'</div>';
-if(d.intent!=='unknown'){matched++;document.getElementById('S').textContent=matched+' matched intents';}
-M.scrollTop=M.scrollHeight;
-});
+  let i=document.getElementById('I'),v=i.value.trim();
+  if(!v)return;
+  let M=document.getElementById('M');
+  M.innerHTML+='<div class="m u">'+v+'</div>';
+  i.value='';
+  M.scrollTop=M.scrollHeight;
+  let payload={message:v};
+  if(awaitingSymptoms){
+    payload.symptoms=true;
+    awaitingSymptoms=false;
+  }
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  .then(r=>r.json()).then(d=>{
+    if(d.symptoms_reported){
+      M.innerHTML+='<div class="m b">✅ บันทึกอาการเรียบร้อย\\n\\n📞 โทร: 065-635-1561\\n💬 Line: @theoasiscare\\n📧 Email: contact@theoasiscare.com</div>';
+    }else{
+      M.innerHTML+='<div class="m b">'+d.response+'</div>';
+      if(d.intent!=='unknown'){matched++;document.getElementById('S').textContent=matched+' matched intents';}
+    }
+    M.scrollTop=M.scrollHeight;
+  });
 }
 </script></body></html>
 """
@@ -108,6 +127,17 @@ def index():
 def chat():
     data = request.get_json()
     msg = data.get("message", "")
+    is_symptoms = data.get("symptoms", False)
+
+    if is_symptoms:
+        entry = {
+            "symptoms": msg,
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        SYMPTOMS_LOG.append(entry)
+        print(f"📝 SYMPTOMS REPORTED: {msg}")
+        return jsonify({"symptoms_reported": True, "intent": "symptoms"})
+
     intent = classify_intent(msg)
     resp = get_response(intent)
     entry = {
@@ -118,6 +148,12 @@ def chat():
     }
     HISTORY.append(entry)
     return jsonify(entry)
+
+
+@app.route("/api/symptoms")
+def symptoms():
+    """Admin endpoint to view reported symptoms."""
+    return jsonify(SYMPTOMS_LOG[-50:])
 
 
 @app.route("/api/history")
