@@ -85,7 +85,7 @@ function t(m){
   if(m==='แจ้งอาการ'){
     awaitingSymptoms=true;
     let M=document.getElementById('M');
-    M.innerHTML+='<div class="m b">📝 กรุณาพิมพ์อาการที่ต้องการปรึกษา\\nเจ้าหน้าที่จะติดต่อกลับโดยเร็ว</div>';
+    M.innerHTML+='<div class="m b">📝 กรุณาพิมพ์อาการที่ต้องการปรึกษา</div>';
     M.scrollTop=M.scrollHeight;
     return;
   }
@@ -106,7 +106,8 @@ function s(){
   fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
   .then(r=>r.json()).then(d=>{
     if(d.symptoms_reported){
-      M.innerHTML+='<div class="m b">✅ รับทราบอาการเรียบร้อยแล้ว\\\\n\\\\nเจ้าหน้าจะติดต่อกลับไม่เกิน 10 นาที (ในเวลทำการ)\\\\n\\\\n⚠️ กรณีเร่งด่วน โทร 065-635-1561</div>';
+      let resp = '✅ รับทราบอาการเรียบร้อยแล้ว<br><br>เจ้าหน้าจะติดต่อกลับไม่เกิน 10 นาที (ในเวลทำการ)<br><br>⚠️ กรณีเร่งด่วน โทร 065-635-1561';
+      M.innerHTML+='<div class="m b">'+resp+'</div>';
     }else{
       M.innerHTML+='<div class="m b">'+d.response+'</div>';
       if(d.intent!=='unknown'){matched++;document.getElementById('S').textContent=matched+' matched intents';}
