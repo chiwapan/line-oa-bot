@@ -1,0 +1,9 @@
+services:
+  line-bot-test:
+    build: .
+    container_name: line-bot-test
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:5000"
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
